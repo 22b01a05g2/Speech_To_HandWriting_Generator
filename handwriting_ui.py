@@ -4,6 +4,7 @@ import numpy as np
 from PIL import Image
 import random
 import tempfile
+import io
 
 
 # --------------------------------------------------
@@ -139,7 +140,6 @@ def merge_dots(comps):
     for s in stems:
 
         sx,sy,sw,sh=s["bbox"]
-
         sxc=s["cx"]
 
         best=None
@@ -160,7 +160,6 @@ def merge_dots(comps):
             dist=abs(dxc-sxc)
 
             if dist<best_dx:
-
                 best_dx=dist
                 best=i
 
@@ -179,7 +178,6 @@ def merge_dots(comps):
             s["mbox"]=(x1,y1,x2-x1,y2-y1)
 
         else:
-
             s["mbox"]=s["bbox"]
 
         merged.append(s)
@@ -234,7 +232,6 @@ def build_glyph_bank(img_path,sequence,min_area):
         glyph=normalize_glyph_from_bbox(ink,bbox)
 
         if glyph:
-
             bank.setdefault(sequence[i],[]).append(glyph)
 
         debug.append({"char":sequence[i],"box":bbox})
@@ -290,19 +287,40 @@ def handwriting_interface():
 
     st.title("Smart Handwriting Generator")
 
+    st.warning("""
+    **Alphabet Image Instructions**
+
+    Write characters exactly in this order:
+
+    CAPITAL LETTERS first:
+    A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+
+    Then small letters:
+    a b c d e f g h i j k l m n o p q r s t u v w x y z
+    """)
+
+    st.warning("""
+    **Digit & Punctuation Image Instructions**
+
+    Write characters in TWO LINES exactly like this:
+
+    0 1 2 3 4 5 6 7 8 9
+    . , ; : ? ! ( ) - +
+    """)
+
     col1,col2=st.columns([1,1])
 
     with col1:
 
-        alpha_file=st.file_uploader("Upload Alphabet Image")
+        alpha_file=st.file_uploader("Upload Alphabet Image *")
 
-        digit_file=st.file_uploader("Upload Digit Image")
+        digit_file=st.file_uploader("Upload Digit & Punctuation Image *")
 
-        word_file=st.file_uploader("Upload Word Sample (letter spacing)")
+        word_file=st.file_uploader("Upload Word Sample (letter spacing) *")
 
-        sent_file=st.file_uploader("Upload Sentence Sample (word spacing)")
+        sent_file=st.file_uploader("Upload Sentence Sample (word spacing) *")
 
-        para_file=st.file_uploader("Upload Paragraph Sample (line spacing)")
+        para_file=st.file_uploader("Upload Paragraph Sample (line spacing) *")
 
     glyph_bank={}
 
@@ -311,7 +329,6 @@ def handwriting_interface():
         if alpha_file:
 
             tmp=tempfile.NamedTemporaryFile(delete=False)
-
             tmp.write(alpha_file.read())
 
             alpha_seq=list("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
@@ -363,14 +380,29 @@ def handwriting_interface():
     speech_text=""
     if "sentence_queue" in st.session_state:
         speech_text=" ".join(st.session_state.sentence_queue)
+
     text_input = st.text_area(
-    "Edit Text Before Generating",
-    value=speech_text,
-    height=150
+        "Edit Text Before Generating",
+        value=speech_text,
+        height=150
     )
 
     if st.button("Generate"):
 
+        if not all([alpha_file,digit_file,word_file,sent_file,para_file]):
+            st.error("Please upload ALL 5 images before generating handwriting.")
+            return
+
         img=render_text_page(text_input,glyph_bank,8,30,50,100)
 
         st.image(img)
+
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+
+        st.download_button(
+            label="Download Handwriting Image",
+            data=buf.getvalue(),
+            file_name="handwriting_output.png",
+            mime="image/png"
+        )

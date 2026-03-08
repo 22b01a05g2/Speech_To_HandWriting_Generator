@@ -72,7 +72,6 @@ def predict_word(audio):
 
     os.remove("temp.wav")
 
-    # add batch + channel dimension for CNN
     features = features[np.newaxis, ..., np.newaxis]
 
     pred = model.predict(features, verbose=0)
@@ -104,9 +103,15 @@ def speech_interface():
 
     sentence = " ".join(st.session_state.sentence_queue)
 
-    st.text_area("Sentence", value=sentence, height=70, disabled=True)
+    st.text_area(
+        "Sentence",
+        value=sentence,
+        height=70,
+        disabled=True
+    )
 
 
+    # Record button
     if st.button("🎤 Record Speech"):
 
         st.info("Recording... Speak now")
@@ -119,6 +124,7 @@ def speech_interface():
         st.session_state.last_conf = conf
 
 
+    # Show prediction
     if st.session_state.last_word:
 
         st.success(
@@ -129,13 +135,24 @@ def speech_interface():
 
         with col1:
             if st.button("✅ Accept"):
-                st.session_state.sentence_queue.append(st.session_state.last_word)
+
+                st.session_state.sentence_queue.append(
+                    st.session_state.last_word
+                )
+
                 st.session_state.last_word = None
+
+                st.rerun()   # ⭐ important fix
+
 
         with col2:
             if st.button("❌ Reject"):
+
                 st.session_state.last_word = None
+
+                st.rerun()
 
 
     if st.button("🧹 Clear Sentence"):
         st.session_state.sentence_queue = []
+        st.rerun()
