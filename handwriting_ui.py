@@ -243,38 +243,60 @@ def build_glyph_bank(img_path,sequence,min_area):
 # RENDER TEXT
 # --------------------------------------------------
 
-def render_text_page(text,glyph_bank,letter_space,word_space,line_gap,target_h):
+def render_text_page(text, glyph_bank, letter_space, word_space, line_gap, target_h):
 
-    page=Image.new("RGBA",(1600,2000),(255,255,255,255))
+    page_w = 1600
+    page_h = 2000
 
-    x=120
-    y=120
+    margin_x = 120
+    margin_y = 120
+
+    page = Image.new("RGBA", (page_w, page_h), (255,255,255,255))
+
+    x = margin_x
+    y = margin_y
 
     for line in text.split("\n"):
 
-        for word in line.split(" "):
+        words = line.split(" ")
+
+        for word in words:
+
+            # --- Calculate word width before placing ---
+            word_width = 0
+            glyphs = []
 
             for ch in word:
-
                 if ch not in glyph_bank:
                     continue
 
-                g=random.choice(glyph_bank[ch])
+                g = random.choice(glyph_bank[ch])
+                scale = target_h / max(g.size[1],1)
+                nw = int(g.size[0] * scale)
 
-                scale=target_h/max(g.size[1],1)
+                glyphs.append((g, nw))
+                word_width += nw + letter_space
 
-                nw=int(g.size[0]*scale)
+            word_width += word_space
 
-                g=g.resize((nw,target_h))
+            # --- Line wrap check ---
+            if x + word_width > page_w - margin_x:
+                x = margin_x
+                y += target_h + line_gap
 
-                page.alpha_composite(g,(x,y))
+            # --- Draw word ---
+            for g, nw in glyphs:
 
-                x+=nw+letter_space
+                g = g.resize((nw, target_h))
+                page.alpha_composite(g, (x, y))
 
-            x+=word_space
+                x += nw + letter_space
 
-        x=120
-        y+=target_h+line_gap
+            x += word_space
+
+        # manual newline
+        x = margin_x
+        y += target_h + line_gap
 
     return page.convert("RGB")
 
